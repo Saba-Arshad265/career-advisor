@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Student Career & Skill Advisor</title>
+<style>
+:root{--bg:#0f1226;--card:#1a1e3b;--card2:#232850;--text:#eef0ff;--muted:#9aa0c7;--accent:#7c5cff;--accent2:#22d3ee;--ok:#34d399;--bad:#f87171;--r:16px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:radial-gradient(1200px 600px at 10% -10%,#2a2170 0%,transparent 60%),var(--bg);color:var(--text);min-height:100vh}
+button{font:inherit;cursor:pointer;border:0}
+input,select{font:inherit;width:100%;padding:12px 14px;border-radius:12px;border:1px solid #343a70;background:var(--card2);color:var(--text);outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+label{display:block;font-size:.85rem;color:var(--muted);margin:14px 0 6px}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;justify-content:space-between;padding:8px 0 16px}
+.logo{font-weight:800;font-size:1.1rem}
+.logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.btn{background:linear-gradient(135deg,var(--accent),#5b8cff);color:#fff;padding:12px 20px;border-radius:12px;font-weight:600}
+.btn.ghost{background:transparent;border:1px solid #3a4080;color:var(--text)}
+.btn.small{padding:8px 14px;font-size:.85rem}
+.card{background:var(--card);border-radius:var(--r);padding:20px;margin-bottom:16px;border:1px solid #2b3163}
+h1{font-size:1.8rem;line-height:1.2}h2{font-size:1.2rem;margin-bottom:10px}h3{font-size:1.05rem}
+.muted{color:var(--muted)}
+.hero{text-align:center;padding:30px 10px}
+.hero p{margin:12px auto 20px;max-width:520px}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px}
+.tab{background:var(--card);color:var(--muted);padding:10px 16px;border-radius:999px;white-space:nowrap;border:1px solid #2b3163}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 14px;border-radius:999px;background:var(--card2);border:1px solid #343a70;color:var(--text);font-size:.9rem}
+.chip.on{background:var(--accent);border-color:var(--accent)}
+.chip.good{background:#12372f;border-color:#1f6b57;color:var(--ok)}
+.chip.miss{background:#3a1f2a;border-color:#7a2f45;color:var(--bad)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.row{grid-template-columns:1fr}}
+.rec{display:flex;gap:14px}.rec .ic{font-size:2rem}
+.bar{height:8px;background:var(--card2);border-radius:99px;overflow:hidden;margin:8px 0}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.score{font-weight:800;color:var(--accent2)}
+.step{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed #2b3163;margin:0;color:inherit;font-size:1rem}
+.step input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent);flex:none}
+.step.done span{text-decoration:line-through;color:var(--muted)}
+details summary{cursor:pointer;color:var(--accent2);margin-top:10px;font-weight:600}
+.chat{height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:6px}
+.msg{max-width:85%;padding:10px 14px;border-radius:14px;line-height:1.45;white-space:pre-wrap}
+.msg.user{align-self:flex-end;background:var(--accent)}
+.msg.assistant{align-self:flex-start;background:var(--card2)}
+.chatbar{display:flex;gap:8px;margin-top:10px}
+.err{color:var(--bad);font-size:.9rem;margin-top:10px;min-height:1em}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ok);color:#06231a;padding:10px 18px;border-radius:12px;font-weight:600;display:none;z-index:9}
+.hidden{display:none}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🎯 <span>Career Advisor</span></div>
+    <div id="userbox" class="hidden"><span id="uname" class="muted"></span> <button class="btn ghost small" id="logout">Logout</button></div>
+  </header>
+
+  <section id="auth">
+    <div class="hero">
+      <h1>Find the career that fits <span style="color:var(--accent2)">you</span></h1>
+      <p class="muted">Tell us your skills and interests. Get career matches, skill-gap analysis, learning roadmaps and an advisor you can chat with.</p>
+    </div>
+    <div class="card" style="max-width:420px;margin:0 auto">
+      <div class="tabs"><button class="tab active" id="t-login">Login</button><button class="tab" id="t-reg">Sign up</button></div>
+      <div id="f-name" class="hidden"><label>Full name</label><input id="a-name" placeholder="Your name"></div>
+      <label>Email</label><input id="a-email" type="email" placeholder="you@example.com">
+      <label>Password</label><input id="a-pass" type="password" placeholder="At least 6 characters">
+      <div class="err" id="a-err"></div>
+      <button class="btn" style="width:100%;margin-top:8px" id="a-go">Login</button>
+    </div>
+  </section>
+
+  <main id="app" class="hidden">
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-p="p-profile">👤 Profile</button>
+      <button class="tab" data-p="p-recs">✨ Matches</button>
+      <button class="tab" data-p="p-road">🗺️ Roadmap</button>
+      <button class="tab" data-p="p-chat">💬 Ask Advisor</button>
+      <button class="tab" data-p="p-hist">🕘 History</button>
+    </div>
+
+    <div id="p-profile" class="panel">
+      <div class="card">
+        <h2>Your profile</h2>
+        <div class="row">
+          <div><label>Education level</label><select id="p-edu"></select></div>
+          <div><label>Field / subject</label><input id="p-field" placeholder="e.g. Computer Science"></div>
+        </div>
+        <label>Career goal (optional)</label><input id="p-goal" placeholder="e.g. I want to become a web developer">
+        <label>Skills you have</label><div class="chips" id="p-skills"></div>
+        <label>Your interests</label><div class="chips" id="p-ints"></div>
+        <div style="margin-top:20px"><button class="btn" id="p-save">Save &amp; Get Recommendations →</button></div>
+        <div class="err" id="p-err"></div>
+      </div>
+    </div>
+
+    <div id="p-recs" class="panel hidden"><div id="recs"></div></div>
+    <div id="p-road" class="panel hidden"><div id="road"></div></div>
+
+    <div id="p-chat" class="panel hidden">
+      <div class="card">
+        <h2>Ask your AI Advisor</h2>
+        <div class="quick" id="quick"></div>
+        <div class="chat" id="chat"></div>
+        <div class="chatbar"><input id="c-in" placeholder="Ask about careers, skills, courses…"><button class="btn" id="c-go">Send</button></div>
+      </div>
+    </div>
+
+    <div id="p-hist" class="panel hidden"><div class="card"><h2>Past recommendations</h2><div id="hist" class="muted">Nothing yet.</div></div></div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(t) { const e = $('#toast'); e.textContent = t; e.style.display = 'block'; setTimeout(() => e.style.display = 'none', 2000); }
+
+/* ===== API helper: talks to the backend, sends the login token ===== */
+async function api(path, method = 'GET', body) {
+  const r = await fetch('/api' + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('token') || '') },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    if (r.status === 401 && !path.startsWith('/auth')) logout();
+    throw new Error(d.error || 'Request failed');
+  }
+  return d;
+}
+
+let meta = null, p = { skills: [], interests: [] }, recs = [], mode = 'login';
+
+/* ===== AUTH ===== */
+function setMode(m) {
+  mode = m;
+  $('#t-login').classList.toggle('active', m === 'login'); $('#t-reg').classList.toggle('active', m === 'reg');
+  $('#f-name').classList.toggle('hidden', m === 'login');
+  $('#a-go').textContent = m === 'login' ? 'Login' : 'Create account'; $('#a-err').textContent = '';
+}
+$('#t-login').onclick = () => setMode('login'); $('#t-reg').onclick = () => setMode('reg');
+
+$('#a-go').onclick = async () => {
+  const email = $('#a-email').value.trim(), password = $('#a-pass').value, err = $('#a-err');
+  err.textContent = '';
+  try {
+    const d = mode === 'reg'
+      ? await api('/auth/register', 'POST', { name: $('#a-name').value, email, password })
+      : await api('/auth/login', 'POST', { email, password });
+    localStorage.setItem('token', d.token); localStorage.setItem('name', d.name);
+    await enterApp();
+  } catch (e) { err.textContent = e.message; }
+};
+function logout() {
+  localStorage.removeItem('token'); localStorage.removeItem('name');
+  $('#app').classList.add('hidden'); $('#userbox').classList.add('hidden'); $('#auth').classList.remove('hidden'); $('#a-pass').value = '';
+}
+$('#logout').onclick = logout;
+
+/* ===== APP ===== */
+async function enterApp() {
+  $('#uname').textContent = localStorage.getItem('name');
+  $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden'); $('#userbox').classList.remove('hidden');
+  meta = meta || await api('/meta');
+  p = await api('/profile');
+  buildProfile(); await refresh(); loadChat();
+  show(recs.length ? 'p-recs' : 'p-profile');
+}
+async function refresh() { recs = await api('/recommendations/latest'); renderRecs(); await renderRoad(); }
+
+function show(id) {
+  $$('.panel').forEach(x => x.classList.toggle('hidden', x.id !== id));
+  $$('#tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.p === id));
+  if (id === 'p-hist') loadHist();
+}
+$$('#tabs .tab').forEach(t => t.onclick = () => show(t.dataset.p));
+
+function chips(el, list, selected) {
+  el.innerHTML = '';
+  list.forEach(x => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (selected.includes(x) ? ' on' : ''); b.textContent = x;
+    b.onclick = () => { const i = selected.indexOf(x); i > -1 ? selected.splice(i, 1) : selected.push(x); b.classList.toggle('on'); };
+    el.appendChild(b);
+  });
+}
+function buildProfile() {
+  $('#p-edu').innerHTML = '<option value="">Select…</option>' + meta.education.map(e => `<option ${e === p.education ? 'selected' : ''}>${esc(e)}</option>`).join('');
+  $('#p-field').value = p.field || ''; $('#p-goal').value = p.goal || '';
+  chips($('#p-skills'), meta.skills, p.skills); chips($('#p-ints'), meta.interests, p.interests);
+}
+$('#p-save').onclick = async () => {
+  $('#p-err').textContent = '';
+  p.education = $('#p-edu').value; p.field = $('#p-field').value; p.goal = $('#p-goal').value;
+  if (!p.skills.length && !p.interests.length) { $('#p-err').textContent = 'Select at least one skill or interest first.'; return; }
+  try {
+    await api('/profile', 'PUT', p);
+    await api('/recommendations', 'POST');
+    await refresh(); toast('Recommendations ready!'); show('p-recs');
+  } catch (e) { $('#p-err').textContent = e.message; }
+};
+
+function renderRecs() {
+  const box = $('#recs');
+  if (!recs.length) { box.innerHTML = '<div class="card muted">Complete your profile to see career matches.</div>'; return; }
+  box.innerHTML = recs.map((r, i) => `
+    <div class="card">
+      <div class="rec"><div class="ic">${r.icon}</div><div style="flex:1">
+        <div style="display:flex;justify-content:space-between;gap:8px"><h3>${i === 0 ? '🏆 ' : ''}${esc(r.title)}</h3><span class="score">${r.score}%</span></div>
+        <div class="bar"><i style="width:${r.score}%"></i></div>
+        <p class="muted">${esc(r.description)}</p>
+      </div></div>
+      <label>Skills you already have</label>
+      <div class="chips">${r.matched.length ? r.matched.map(s => `<span class="chip good">✓ ${esc(s)}</span>`).join('') : '<span class="muted">None yet</span>'}</div>
+      <label>Skills to learn</label>
+      <div class="chips">${r.missing.length ? r.missing.map(s => `<span class="chip miss">+ ${esc(s)}</span>`).join('') : '<span class="muted">You cover them all!</span>'}</div>
+      <details><summary>Free learning resources</summary><p class="muted" style="margin-top:8px">${r.resources.map(esc).join(' · ')}</p></details>
+    </div>`).join('');
+}
+
+async function renderRoad() {
+  const box = $('#road');
+  if (!recs.length) { box.innerHTML = '<div class="card muted">Get recommendations first to unlock roadmaps.</div>'; return; }
+  const data = await api('/roadmap');
+  box.innerHTML = data.map(c => `<div class="card"><h3>${c.icon} ${esc(c.title)} roadmap</h3>
+    <div class="bar"><i style="width:${c.percent}%"></i></div><p class="muted" style="margin-bottom:6px">${c.percent}% complete</p>
+    ${c.steps.map(s => `<label class="step ${s.done ? 'done' : ''}"><input type="checkbox" data-s="${s.step_id}" ${s.done ? 'checked' : ''}><span>${esc(s.description)}</span></label>`).join('')}
+  </div>`).join('');
+  $$('#road input').forEach(cb => cb.onchange = async () => {
+    await api('/progress/' + cb.dataset.s, 'PUT', { done: cb.checked }); renderRoad();
+  });
+}
+
+/* ===== CHAT ===== */
+const QUICK = ['Which career suits me best?', 'What skills should I learn?', 'Give me a roadmap', 'Suggest free courses'];
+$('#quick').innerHTML = QUICK.map(q => `<button class="chip">${q}</button>`).join('');
+$$('#quick .chip').forEach(b => b.onclick = () => sendChat(b.textContent));
+function addMsg(role, text) {
+  const d = document.createElement('div'); d.className = 'msg ' + role; d.textContent = text;
+  $('#chat').appendChild(d); $('#chat').scrollTop = 1e9;
+}
+async function loadChat() {
+  $('#chat').innerHTML = '';
+  const m = await api('/chat');
+  if (!m.length) addMsg('assistant', "Hi! I'm your career advisor. Ask me anything about careers, skills or learning paths.");
+  m.forEach(x => addMsg(x.role, x.content));
+}
+async function sendChat(text) {
+  text = (text || $('#c-in').value).trim(); if (!text) return;
+  $('#c-in').value = ''; addMsg('user', text);
+  try { addMsg('assistant', (await api('/chat', 'POST', { message: text })).reply); }
+  catch (e) { addMsg('assistant', 'Error: ' + e.message); }
+}
+$('#c-go').onclick = () => sendChat();
+$('#c-in').onkeydown = e => { if (e.key === 'Enter') sendChat(); };
+
+async function loadHist() {
+  const h = await api('/history');
+  $('#hist').innerHTML = h.length ? h.map(x => `<div class="step"><span>${esc(new Date(x.date).toLocaleString())} — <b>${esc(x.top)}</b> (${x.score}%)</span></div>`).join('') : 'Nothing yet.';
+}
+
+/* ===== BOOT ===== */
+if (localStorage.getItem('token')) enterApp().catch(logout);
+</script>
+</body>
+</html>
