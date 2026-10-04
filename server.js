@@ -4,11 +4,14 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // put your index.html inside /public
+
+// Serve static frontend files from 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 const db = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
@@ -19,13 +22,18 @@ const db = mysql.createPool({
   connectionLimit: 10
 });
 
-/* ---------- helpers ---------- */
+/* ---------- HELPERS ---------- */
 const wrap = fn => (req, res) => fn(req, res).catch(e => { console.error(e); res.status(500).json({ error: 'Server error' }); });
-const sign = uid => jwt.sign({ uid }, process.env.JWT_SECRET, { expiresIn: '7d' });
+const sign = uid => jwt.sign({ uid }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
+
 function auth(req, res, next) {
   const t = (req.headers.authorization || '').replace('Bearer ', '');
-  try { req.uid = jwt.verify(t, process.env.JWT_SECRET).uid; next(); }
-  catch { res.status(401).json({ error: 'Please log in again.' }); }
+  try { 
+    req.uid = jwt.verify(t, process.env.JWT_SECRET || 'fallback_secret').uid; 
+    next(); 
+  } catch { 
+    res.status(401).json({ error: 'Please log in again.' }); 
+  }
 }
 
 async function getProfile(uid) {
@@ -44,14 +52,13 @@ async function loadCareers() {
   const [rs] = await db.query('SELECT career_id AS id, name FROM resources');
   const m = {};
   cs.forEach(c => m[c.id] = { ...c, skills: [], interests: [], roadmap: [], resources: [] });
-  sk.forEach(r => m[r.id].skills.push(r.name));
-  it.forEach(r => m[r.id].interests.push(r.name));
-  rm.forEach(r => m[r.id].roadmap.push(r.description));
-  rs.forEach(r => m[r.id].resources.push(r.name));
+  sk.forEach(r => m[r.id] && m[r.id].skills.push(r.name));
+  it.forEach(r => m[r.id] && m[r.id].interests.push(r.name));
+  rm.forEach(r => m[r.id] && m[r.id].roadmap.push(r.description));
+  rs.forEach(r => m[r.id] && m[r.id].resources.push(r.name));
   return m;
 }
 
-/* ---------- recommendation engine (same logic as the frontend) ---------- */
 function scoreCareer(c, p) {
   const us = new Set(p.skills), ui = new Set(p.interests), goal = (p.goal || '').toLowerCase();
   const matched = c.skills.filter(s => us.has(s));
@@ -59,13 +66,13 @@ function scoreCareer(c, p) {
   const hits = c.interests.filter(i => ui.has(i)).length;
   const words = c.title.toLowerCase().replace(/\//g, ' ').split(' ').filter(w => w.length > 3);
   const bonus = goal && words.some(w => goal.includes(w)) ? 0.1 : 0;
-  const score = Math.round(Math.min(1, 0.6 * matched.length / c.skills.length + 0.4 * Math.min(1, hits / 2) + bonus) * 100);
+  const score = Math.round(Math.min(1, 0.6 * matched.length / (c.skills.length || 1) + 0.4 * Math.min(1, hits / 2) + bonus) * 100);
   return { id: c.id, title: c.title, icon: c.icon, description: c.description, score, matched, missing, roadmap: c.roadmap, resources: c.resources };
 }
 
 async function latestRecs(uid) {
   const [[run]] = await db.query('SELECT MAX(run_id) AS id FROM recommendation_runs WHERE user_id = ?', [uid]);
-  if (!run.id) return [];
+  if (!run || !run.id) return [];
   const [items] = await db.query('SELECT career_id, score FROM recommendation_items WHERE run_id = ? ORDER BY rank_no', [run.id]);
   const p = await getProfile(uid), careers = await loadCareers();
   return items.map(it => ({ ...scoreCareer(careers[it.career_id], p), score: it.score }));
@@ -83,7 +90,12 @@ function advisorAnswer(q, recs) {
   return `Your top match is ${t.title} (${t.score}%). Ask me about skills to learn, a roadmap, free courses or other careers.`;
 }
 
-/* ---------- AUTH ---------- */
+/* ---------- FRONTEND HOME ROUTE ---------- */
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+/* ---------- AUTH ROUTES ---------- */
 app.post('/api/auth/register', wrap(async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email?.includes('@') || !password || password.length < 6)
@@ -172,7 +184,7 @@ app.get('/api/roadmap', auth, wrap(async (req, res) => {
      WHERE rs.career_id IN (?) ORDER BY rs.career_id, rs.step_no`, [req.uid, top.map(t => t.id)]);
   res.json(top.map(t => {
     const s = steps.filter(x => x.career_id === t.id).map(x => ({ ...x, done: !!x.done }));
-    return { id: t.id, title: t.title, icon: t.icon, steps: s, percent: Math.round(100 * s.filter(x => x.done).length / s.length) };
+    return { id: t.id, title: t.title, icon: t.icon, steps: s, percent: Math.round(100 * s.filter(x => x.done).length / (s.length || 1)) };
   }));
 }));
 
@@ -196,4 +208,7 @@ app.post('/api/chat', auth, wrap(async (req, res) => {
   res.json({ reply });
 }));
 
-app.listen(process.env.PORT || 3000, () => console.log('API running on port ' + (process.env.PORT || 3000)));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log('API running on port ' + PORT));
+
+module.exports = app;
